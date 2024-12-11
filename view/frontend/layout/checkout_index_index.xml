@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<page xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
+    <head>
+        <css src="WB_OneStepCheckout::css/custom.css" />
+    </head>
+    <body>
+        <referenceContainer name="content">
+            <block class="WB\OneStepCheckout\Block\Checkout\CustomNote" name="checkout.custom.note" template="WB_OneStepCheckout::checkout/custom_note.phtml" before="-"/>
+            <block class="WB\OneStepCheckout\Block\Checkout\CustomNote" name="wb.checkout.summery.message" template="WB_OneStepCheckout::checkout/order_summery_message.phtml"/>
+        </referenceContainer>
+
+        <referenceBlock name="checkout.cart.totals">
+            <block class="WB\OneStepCheckout\Block\Checkout\CustomNote" name="checkout.custom.note.summary" template="WB_OneStepCheckout::checkout/custom_note_summary.phtml" before="-"/>
+        </referenceBlock>
+    </body>
+</page>

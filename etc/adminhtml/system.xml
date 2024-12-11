@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:Config/etc/system_file.xsd">
+    <system>
+        <section id="wb_onestepcheckout" translate="label" sortOrder="100" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Custom Note - Checkout Page</label>
+            <tab>jaipurandco</tab>
+            <resource>WB_OneStepCheckout::config</resource>
+            <group id="general" translate="label" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
+                <label>General Settings</label>
+                <field id="enable" translate="label" type="select" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Enable</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                </field>
+                <field id="enable_popup" translate="label" type="select" sortOrder="15" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Enable Popup</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    <comment>Enable or disable the popup on the checkout page.</comment>
+                </field>
+                <field id="custom_note" translate="label" type="textarea" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Custom Note</label>
+                    <comment>Custom note to display on the checkout page.</comment>
+                </field>
+                <field id="free_shipping_message" translate="label" type="textarea" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Free Shipping Congratulation Message</label>
+                    <comment>Enter the message for free shipping notification.</comment>
+                </field>
+                <field id="add_more_message" translate="label" type="textarea" sortOrder="40" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Add More for Free Shipping Message</label>
+                    <comment>Enter the message for "Add {remaining}$ more for Free Shipping"</comment>
+                </field>
+            </group>
+        </section>
+    </system>
+</config>

@@ -1,0 +1,26 @@
+{
+  "name": "wb/onestepcheckout",
+  "description": "Customizations for the checkout process in Magento 2, including order summary messages and popup notifications.",
+  "type": "magento2-module",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Wajahat Bashir",
+      "email": "wajahatbashir@example.com",
+      "role": "Developer"
+    }
+  ],
+  "require": {
+    "php": "~7.4.0 || ~8.1.0",
+    "magento/framework": "*",
+    "magento/module-checkout": "*"
+  },
+  "autoload": {
+    "files": [
+      "registration.php"
+    ],
+    "psr-4": {
+      "WB\\OneStepCheckout\\": ""
+    }
+  }
+}

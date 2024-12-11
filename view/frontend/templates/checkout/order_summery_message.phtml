@@ -1,0 +1,128 @@
+<?php if ($block->isModuleEnabled()): ?>
+    <?php 
+    $freeShippingMessage = $block->getFreeShippingMessage();
+    $addMoreMessage = $block->getAddMoreMessage();
+    $popupEnabled = $block->isPopupEnabled(); // Fetch popup enable/disable status
+    ?>
+    <!-- Popup HTML Structure -->
+    <?php if ($popupEnabled): ?>
+    <div id="custom-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 9999;"></div>
+    <div id="custom-popup" style="display: none; position: fixed; top: 20%; left: 50%; transform: translate(-50%, -20%); background: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); z-index: 10000; text-align: center; width: 90%; max-width: 400px;">
+        <span id="popup-message" style="font-size: 20px; font-weight: bold; color: #ff5722; margin-bottom: 20px; display: block;">Custom Message</span>
+        <button id="close-popup" style="margin-top: 10px; padding: 8px 15px; font-size: 12px; font-weight: normal; background: #999; color: #fff; border: none; border-radius: 4px; cursor: pointer; transition: background-color 0.3s ease;">Close</button>
+    </div>
+    <?php endif; ?>
+
+    <!-- JavaScript Logic -->
+    <script type="text/javascript">
+    require([
+        'jquery',
+        'Magento_Checkout/js/model/quote',
+    ], function ($, quote) {
+        console.log('Popup script loaded'); // Debug log
+        var popupDisplayedOnce = false; // Ensures popup shows only once
+        var popupClosed = false; // Tracks if the popup was closed manually
+        var lastSubtotal = null; // Store the last subtotal to detect changes
+        var popupEnabled = <?= json_encode($popupEnabled); ?>; // Popup enable/disable flag
+
+        function waitForOrderSummary(callback) {
+            var interval = setInterval(function () {
+                if ($('table.data.table.table-totals').length > 0) {
+                    clearInterval(interval);
+                    callback();
+                }
+            }, 100); // Retry every 100ms
+        }
+
+        function updateOrderSummary(message, messageColor) {
+            if (!message || message.trim() === '') {
+                console.log('Order summary message is empty. Skipping...');
+                $('.order-summary-custom-message').remove(); // Ensure the div is removed if message is empty
+                return;
+            }
+            waitForOrderSummary(function () {
+                var orderSummary = $('.order-summary-custom-message');
+                if (orderSummary.length > 0) {
+                    orderSummary.text(message).show().css({
+                        'color': messageColor,
+                        'font-weight': 'bold',
+                        'background': '#fff8e1',
+                        'padding': '10px',
+                        'border-radius': '4px',
+                        'margin-top': '10px'
+                    });
+                } else {
+                    $('<div class="order-summary-custom-message" style="color: ' + messageColor + '; font-weight: bold; background: #fff8e1; padding: 10px; border-radius: 4px; margin-top: 10px;">' + message + '</div>').insertBefore('table.data.table.table-totals');
+                }
+            });
+        }
+
+        function checkSubtotal() {
+            var totals = quote.getTotals()();
+            if (totals && totals.subtotal) {
+                var subtotal = parseFloat(totals.subtotal);
+                var message = '';
+                var messageColor = '';
+                var remainingAmount = 300 - subtotal;
+
+                // Detect significant subtotal change
+                if (lastSubtotal !== null && subtotal === lastSubtotal) {
+                    console.log('Subtotal has not changed. Skipping...');
+                    return;
+                }
+
+                lastSubtotal = subtotal; // Update last subtotal
+
+                if (subtotal >= 300) {
+                    message = <?= json_encode($freeShippingMessage); ?>;
+                    messageColor = 'darkgreen';
+                } else if (subtotal >= 100 && subtotal < 300) {
+                    message = <?= json_encode($addMoreMessage); ?>.replace('{remaining}', remainingAmount.toFixed(0));
+                    messageColor = 'black';
+                }
+
+                console.log('Order summary message:', message);
+
+                // Update order summary message
+                updateOrderSummary(message, messageColor);
+
+                // Show popup only if popup is enabled, not already displayed, and not closed manually
+                if (popupEnabled && !popupDisplayedOnce && !popupClosed) {
+                    showPopupAfterDelay(message, messageColor, 5000); // Delay by 5 seconds
+                }
+            }
+        }
+
+        function showPopupAfterDelay(message, messageColor, delay) {
+            setTimeout(function () {
+                if (!popupEnabled || popupDisplayedOnce || popupClosed) {
+                    console.log('Popup is disabled or already displayed/closed. Skipping...');
+                    return;
+                }
+                console.log('Displaying popup'); // Debug log
+                $('#popup-message').text(message).css('color', messageColor);
+                $('#custom-popup').fadeIn();
+                $('#custom-overlay').fadeIn();
+                popupDisplayedOnce = true;
+            }, delay);
+        }
+
+        // Close popup and hide overlay
+        $(document).on('click', '#close-popup', function () {
+            $('#custom-popup').fadeOut();
+            $('#custom-overlay').fadeOut();
+            popupClosed = true; // Mark as manually closed
+        });
+
+        // Initial subtotal check
+        checkSubtotal();
+
+        // Subscribe to subtotal changes
+        quote.totals.subscribe(function () {
+            console.log('Subtotal updated. Rechecking...');
+            popupDisplayedOnce = false; // Allow popup to display again on significant subtotal change
+            checkSubtotal();
+        });
+    });
+    </script>
+<?php endif; ?>

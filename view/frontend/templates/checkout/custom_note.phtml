@@ -1,0 +1,8 @@
+<?php if ($block->isModuleEnabled()): ?>
+    <div class="custom-checkout-note">
+        <span class="custom-checkout-icon"></span>
+        <span class="custom-checkout-message">
+            <?= $block->escapeHtml($block->getCustomNote()) ?>
+        </span>
+    </div>
+<?php endif; ?>

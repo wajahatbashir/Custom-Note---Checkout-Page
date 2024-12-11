@@ -1,0 +1,265 @@
+<?php
+if ($block->isModuleEnabled()):
+?>
+<script type="text/javascript">
+require([
+    'jquery',
+    'Magento_Customer/js/customer-data',
+    'Magento_Checkout/js/model/quote',
+    'Magento_Checkout/js/action/set-billing-address',
+    'Magento_Checkout/js/action/set-shipping-information',
+    'Magento_Checkout/js/model/full-screen-loader',
+    'Magento_Checkout/js/action/place-order',
+    'uiRegistry',
+    'Magento_Ui/js/lib/core/class'
+], function ($, customerData, quote, setBillingAddressAction, setShippingInformationAction, fullScreenLoader, placeOrderAction, uiRegistry, Class) {
+    var customer = customerData.get('customer');
+
+    if (!customer().firstname) { // Check if the user is a guest
+        var MyComponent = Class.extend({
+            defaults: {
+                template: 'WB_OneStepCheckout/payment/checkmo',
+            },
+
+            // Initialize the component
+            initialize: function () {
+                this._super();
+                // Set default country and values for shipping address fields
+                this.setDefaultCountry();
+                this.setDefaultValues();
+                // Bind values to form fields and check subtotal
+                this.bindValuesToFields();
+                this.checkSubtotal();
+                this.hideBillingCheckbox();
+                this.overridePlaceOrder();
+                this.hideBillingAddressSection();
+                // Subscribe to changes in totals to update subtotal message
+                quote.totals.subscribe(this.checkSubtotal.bind(this));
+
+                // Ensure billing address is updated when shipping address changes
+                quote.shippingAddress.subscribe(this.updateBillingAddress.bind(this));
+            },
+
+            // Set default country to US if not already set
+            setDefaultCountry: function () {
+                var address = quote.shippingAddress() || {};
+                address.countryId = address.countryId || 'US';
+                address.canUseForBilling = address.canUseForBilling || function () { return true; };
+                address.getType = address.getType || function () { return 'shipping'; };
+                quote.shippingAddress(address);
+            },
+
+            // Set default values for shipping address fields
+            setDefaultValues: function () {
+                var address = quote.shippingAddress();
+                address.lastname = address.lastname || '-';
+                address.postcode = address.postcode || '2100';
+                address.region = address.region || 'California';
+                address.regionCode = address.regionCode || 'CA';
+                address.regionId = address.regionId || '12';
+                quote.shippingAddress(address);
+            },
+
+            // Bind values to form fields and hide specific fields
+            bindValuesToFields: function () {
+                setTimeout(function() {
+                    uiRegistry.async('checkout.steps.shipping-step.shippingAddress.shipping-address-fieldset.firstname')(function (firstnameField) {
+                        firstnameField.label = 'Full Name';
+                        firstnameField.value('');
+                    });
+                }, 500);
+                
+                uiRegistry.async('checkout.steps.shipping-step.shippingAddress.shipping-address-fieldset.lastname')(function (lastnameField) {
+                    lastnameField.value('-');
+                    lastnameField.visible(false); // Hide field
+                });
+                uiRegistry.async('checkout.steps.shipping-step.shippingAddress.shipping-address-fieldset.street.0')(function (streetField) {
+                    streetField.value('');
+                });
+                uiRegistry.async('checkout.steps.shipping-step.shippingAddress.shipping-address-fieldset.street.1')(function (streetField) {
+                    streetField.value('NA');
+                    streetField.visible(false); // Hide field
+                });
+                uiRegistry.async('checkout.steps.shipping-step.shippingAddress.shipping-address-fieldset.city')(function (cityField) {
+                    cityField.visible(true); // Show field
+                });
+                uiRegistry.async('checkout.steps.shipping-step.shippingAddress.shipping-address-fieldset.postcode')(function (postcodeField) {
+                    postcodeField.visible(false); // Hide field
+                });
+                uiRegistry.async('checkout.steps.shipping-step.shippingAddress.shipping-address-fieldset.region')(function (regionField) {
+                    regionField.visible(true); // Show field
+                });
+                uiRegistry.async('checkout.steps.shipping-step.shippingAddress.shipping-address-fieldset.region_id')(function (regionIdField) {
+                    regionIdField.visible(true); // Show field
+                });
+                uiRegistry.async('checkout.steps.shipping-step.shippingAddress.shipping-address-fieldset.region_code')(function (regionCodeField) {
+                    regionCodeField.visible(true); // Show field
+                });
+                uiRegistry.async('checkout.steps.shipping-step.shippingAddress.shipping-address-fieldset.telephone')(function (telephoneField) {
+                    telephoneField.value('');
+                });
+                uiRegistry.async('checkout.steps.shipping-step.shippingAddress.shipping-address-fieldset.country_id')(function (countryField) {
+                    countryField.visible(true); // Show field
+                });
+            },
+
+            // Check the subtotal and display a custom message if subtotal is between 100 and 300
+            checkSubtotal: function () {
+                var totals = quote.getTotals()();
+                if (totals && totals.subtotal) {
+                    var subtotal = parseFloat(totals.subtotal);
+                    if (subtotal >= 300) {
+                        var message = '🥳 Awesome! You got Free Shipping';
+                    } else if (subtotal >= 100 && subtotal < 300) {
+                        var remaining = 300 - subtotal;
+                        var message = 'Add ' + remaining.toFixed(0) + '$ more for Free Shipping';
+                    } else {
+                        var message = '';
+                    }
+
+                    var orderSummary = $('.order-summary-custom-message');
+                    if (orderSummary.length > 0) {
+                        orderSummary.text(message).show();
+                    } else {
+                        var summaryTable = $('table.data.table.table-totals');
+                        if (summaryTable.length > 0) {
+                            $('<div class="order-summary-custom-message" style="color: black; font-weight: bold;">' + message + '</div>').insertBefore(summaryTable);
+                        }
+                    }
+                } else {
+                    $('.order-summary-custom-message').hide();
+                }
+            },
+
+            // Hide the billing address checkbox
+            hideBillingCheckbox: function () {
+                var billingCheckbox = $('.billing-address-same-as-shipping input[type="checkbox"]');
+                if (billingCheckbox.length) {
+                    billingCheckbox.prop('checked', true).change();
+                    $('.billing-address-same-as-shipping').hide();
+                }
+            },
+
+            // Hide the billing address section
+            hideBillingAddressSection: function () {
+                $('.checkout-billing-address').hide();
+            },
+
+            // Override the place order button functionality
+            overridePlaceOrder: function () {
+                var self = this;
+                $(document).on('click', '#place-order-trigger', function (e) {
+                    e.preventDefault();
+                    // Ensure billing address is set to shipping address if checkbox is checked
+                    self.updateBillingAddress();
+                    self.placeOrder();
+                });
+            },
+
+            // Update the billing address to match the shipping address
+            updateBillingAddress: function () {
+                var billingAddress = quote.billingAddress();
+                var shippingAddress = quote.shippingAddress();
+                if (billingAddress && shippingAddress) {
+                    billingAddress.regionId = shippingAddress.regionId;
+                    billingAddress.regionCode = shippingAddress.regionCode;
+                    billingAddress.region = shippingAddress.region;
+                    billingAddress.lastname = shippingAddress.lastname;
+                    billingAddress.firstname = shippingAddress.firstname || 'John'; // Set default value for firstname
+                    billingAddress.street = shippingAddress.street;
+                    billingAddress.city = shippingAddress.city;
+                    billingAddress.postcode = shippingAddress.postcode;
+                    billingAddress.telephone = shippingAddress.telephone || '1234567890'; // Set default value for telephone
+                    billingAddress.countryId = shippingAddress.countryId; // Ensure country is set
+                    billingAddress.saveInAddressBook = null;
+                }
+            },
+
+            // Place the order
+            placeOrder: function () {
+                fullScreenLoader.startLoader();
+                var address = quote.shippingAddress();
+                if (!address || !address.street || !address.city || !address.postcode || !address.countryId || !address.regionId) {
+                    fullScreenLoader.stopLoader();
+                    return;
+                }
+                setBillingAddressAction().done(function () {
+                    setShippingInformationAction().done(function () {
+                        var paymentMethod = quote.paymentMethod();
+                        if (!paymentMethod) {
+                            fullScreenLoader.stopLoader();
+                            return;
+                        }
+                        placeOrderAction(paymentMethod).done(function () {
+                            window.location.href = '/checkout/onepage/success/';
+                        }).fail(function () {
+                            fullScreenLoader.stopLoader();
+                        });
+                    }).fail(function () {
+                        fullScreenLoader.stopLoader();
+                    });
+                }).fail(function () {
+                    fullScreenLoader.stopLoader();
+                });
+            }
+        });
+
+        setTimeout(function() {
+            var componentInstance = new MyComponent();
+            componentInstance.initialize();
+        }, 1000);
+    } else {
+        // console.log('User is logged in, default Magento checkout will be used.');
+
+        // Subscribe to changes in totals to update subtotal message for logged in users
+        quote.totals.subscribe(function() {
+            var totals = quote.getTotals()();
+            if (totals && totals.subtotal) {
+                var subtotal = parseFloat(totals.subtotal);
+                if (subtotal >= 300) {
+                    var message = '🥳 Awesome! You got Free Shipping';
+                } else if (subtotal >= 100 && subtotal < 300) {
+                    var remaining = 300 - subtotal;
+                    var message = 'Add ' + remaining.toFixed(0) + '$ more for Free Shipping';
+                } else {
+                    var message = '';
+                }
+
+                var orderSummary = $('.order-summary-custom-message');
+                if (orderSummary.length > 0) {
+                    orderSummary.text(message).show();
+                } else {
+                    var summaryTable = $('table.data.table.table-totals');
+                    if (summaryTable.length > 0) {
+                        $('<div class="order-summary-custom-message" style="color: black; font-weight: bold;">' + message + '</div>').insertBefore(summaryTable);
+                    }
+                }
+            } else {
+                $('.order-summary-custom-message').hide();
+            }
+        });
+    }
+});
+</script>
+
+<style>
+.checkout-billing-address, .billing-address-same-as-shipping {
+    display: none;
+}
+.opc-block-shipping-information {
+    display: none;
+}
+.order-summary-custom-message {
+    color: black !important;
+    font-weight: bold;
+    margin: 10px 0px;
+}
+body.checkout-index-index .intl-tel-input.allow-dropdown input {
+    width: 96% !important;
+}
+body.checkout-index-index #customer-email-fieldset fieldset.fieldset.hidden-fields {
+    display: none !important;
+}
+</style>
+
+<?php endif; ?>

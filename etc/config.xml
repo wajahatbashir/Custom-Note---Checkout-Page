@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+    <default>
+        <wb_onestepcheckout>
+            <general>
+                <enable>1</enable>
+                <custom_note><![CDATA[We will email you with the checkout information.]]></custom_note>
+            </general>
+        </wb_onestepcheckout>
+    </default>
+</config>
